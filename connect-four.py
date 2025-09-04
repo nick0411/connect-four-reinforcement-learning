@@ -64,15 +64,12 @@ class QAgent:
             self.q_table[state] = np.zeros(COLS)
         return self.q_table[state]
 
-    # ==================== Heuristic + Exploration ====================
     def choose_action(self, state, valid_moves, board=None, player=2):
-        # Heuristic: immediate win or block
         if board is not None:
             move = self.heuristic_action(board, player)
             if move is not None:
                 return move
 
-        # Epsilon-greedy with occasional forced exploration
         if random.random() < self.epsilon or random.random() < 0.05:
             return random.choice(valid_moves)
 
@@ -85,14 +82,14 @@ class QAgent:
         valid_moves = available_moves(board)
         opponent = 2 if player == 1 else 1
 
-        # Check for immediate win
+        # Immediate win
         for move in valid_moves:
             temp_board = board.copy()
             make_move(temp_board, move, player)
             if check_winner(temp_board, player):
                 return move
 
-        # Check for immediate block
+        # Immediate block
         for move in valid_moves:
             temp_board = board.copy()
             make_move(temp_board, move, opponent)
@@ -137,34 +134,39 @@ def intermediate_reward(board, player):
                         reward -= 0.4
     return reward
 
-# ==================== SAVE / LOAD AGENT ====================
-def save_agent(agent, total_episodes, filename="qtable.pkl"):
+# ==================== SAVE / LOAD ====================
+def save_agent(agent, total_episodes, history=None, filename="qtable.pkl"):
     with open(filename, "wb") as f:
         pickle.dump({
             "q_table": agent.q_table,
-            "episodes": total_episodes
+            "episodes": total_episodes,
+            "history": history if history is not None else []
         }, f)
 
 def load_agent(agent, filename="qtable.pkl"):
     try:
         with open(filename, "rb") as f:
             data = pickle.load(f)
-            agent.q_table = data["q_table"]
+            agent.q_table = data.get("q_table", {})
             total_episodes = data.get("episodes", 0)
-        print(f"Loaded Q-table from file. Episodes so far: {total_episodes}")
-        return total_episodes
+            history = data.get("history", [])
+        print(f"Loaded Q-table. Episodes: {total_episodes}, History length: {len(history)}")
+        return total_episodes, history
     except FileNotFoundError:
         print("No saved Q-table found. Starting fresh.")
-        return 0
+        return 0, []
 
-# ==================== TRAINING LOOP ====================
+# ==================== TRAIN ====================
 def train(agent, episodes=100_000, total_episodes=0, save_file="qtable.pkl"):
+    _, history = load_agent(agent, save_file)
+
     for ep in range(episodes):
-        print(f"Starting episode {total_episodes + ep + 1}")
+        print(f"Episode {total_episodes + ep + 1}/{total_episodes + episodes}, Epsilon: {agent.epsilon:.4f}", end='\r')
         board = create_board()
         state = encode_state(board)
         done = False
         player = 1
+        result = None
 
         while not done:
             valid_moves = available_moves(board)
@@ -174,9 +176,11 @@ def train(agent, episodes=100_000, total_episodes=0, save_file="qtable.pkl"):
             if check_winner(board, player):
                 reward = 1 if player == 1 else -1
                 agent.update(state, action, reward, None, True)
+                result = "win" if player == 1 else "loss"
                 done = True
             elif board_full(board):
                 agent.update(state, action, 0.5, None, True)
+                result = "draw"
                 done = True
             else:
                 next_state = encode_state(board)
@@ -186,16 +190,16 @@ def train(agent, episodes=100_000, total_episodes=0, save_file="qtable.pkl"):
                 player = 2 if player == 1 else 1
 
         agent.decay_epsilon()
+        history.append(result)
 
-        if (ep+1) % 10_000 == 0:
-            agent.epsilon = 0.5  # force exploration
-            print(f"Episode {total_episodes + ep +1}, epsilon={agent.epsilon:.3f}")
-            save_agent(agent, total_episodes + ep +1, save_file)
+        if (ep + 1) % 10_000 == 0:
+            agent.epsilon = 0.5
+            save_agent(agent, total_episodes + ep + 1, history, save_file)
 
     total_episodes += episodes
-    save_agent(agent, total_episodes, save_file)
+    save_agent(agent, total_episodes, history, save_file)
     print(f"Training completed. Total episodes trained: {total_episodes}")
-    return total_episodes
+    return total_episodes, history
 
 # ==================== PYGAME VISUALS ====================
 CELL_SIZE = 100
@@ -226,7 +230,7 @@ def draw_board(screen, board):
 
 # ==================== HUMAN VS AI ====================
 def play_human_vs_ai(agent):
-    agent.load()
+    load_agent(agent, "qtable.pkl")
     board = create_board()
     game_over = False
     turn = 0  # human first
@@ -268,7 +272,6 @@ def play_human_vs_ai(agent):
 # ==================== AI VS AI ====================
 def play_ai_vs_ai(agent, episodes=1, delay=300):
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    
     for ep in range(episodes):
         board = create_board()
         game_over = False
@@ -301,13 +304,9 @@ def play_ai_vs_ai(agent, episodes=1, delay=300):
 # ==================== MAIN ====================
 if __name__ == "__main__":
     agent = QAgent()
-    total_episodes = load_agent(agent, "qtable.pkl")
+    total_episodes, history = load_agent(agent, "qtable.pkl")
 
-    # Train in chunks of 100,000 episodes
-    total_episodes = train(agent, episodes=1000, total_episodes=total_episodes, save_file="qtable.pkl")
+    total_episodes, history = train(agent, episodes=10000, total_episodes=total_episodes, save_file="qtable.pkl")
 
-    # Watch AI vs AI animation
-    #play_ai_vs_ai(agent, episodes=10, delay=300)
-
-    # Now play against AI
+    #play_ai_vs_ai(agent, episodes=4, delay=300)
     #play_human_vs_ai(agent)
