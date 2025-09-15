@@ -302,11 +302,11 @@ def play_ai_vs_ai(agent, episodes=1, delay=300):
         pygame.time.wait(1000)
 
 # ==================== MAIN ====================
-if __name__ == "__main__":
+if __name__ == "__main__": 
     agent = QAgent()
     total_episodes, history = load_agent(agent, "qtable.pkl")
 
-    total_episodes, history = train(agent, episodes=10000, total_episodes=total_episodes, save_file="qtable.pkl")
+    total_episodes, history = train(agent, episodes=1000, total_episodes=total_episodes, save_file="qtable.pkl")
 
     #play_ai_vs_ai(agent, episodes=4, delay=300)
     #play_human_vs_ai(agent)
