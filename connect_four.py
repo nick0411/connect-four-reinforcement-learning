@@ -328,4 +328,4 @@ if __name__ == "__main__":
             print("Goodbye!")
             sys.exit()
         else:
-            print("Invalid choice. Try again.")
+            print("Invalid choice. Try again. ")
