@@ -318,7 +318,7 @@ if __name__ == "__main__":
         if choice == "1":
             print("Starting training...")
             start_time = time.time()
-            total_episodes, history = train(agent, episodes=150000, total_episodes=total_episodes)
+            total_episodes, history = train(agent, episodes=100, total_episodes=total_episodes)
             print(f"Training done in {time.time() - start_time:.2f}s. Total episodes: {total_episodes}")
         elif choice == "2":
             play_human_vs_ai(agent)

@@ -1,3 +1,4 @@
+import gzip
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,38 +6,42 @@ import pandas as pd
 import os
 
 # ============================
-# Load Training Data
+# Load Training History
 # ============================
-def load_history(filename="qtable.pkl"):
+def load_history(filename="qtable.pkl.gz"):
     if not os.path.exists(filename):
-        print(f"File not found: {filename}")
+        print(f"❌ File not found: {filename}")
         return []
 
-    with open(filename, "rb") as f:
-        data = pickle.load(f)
+    try:
+        # Handle gzip-compressed pickle file
+        with gzip.open(filename, "rb") as f:
+            data = pickle.load(f)
+    except Exception as e:
+        print("❌ Failed to load:", e)
+        return []
 
-    # If saved as a dict with history inside
+    # Extract history list
     if isinstance(data, dict) and "history" in data:
         return data["history"]
     elif isinstance(data, list):
         return data
     else:
-        print("No valid history found in file.")
+        print("⚠️ No valid history found in file.")
         return []
 
-
 # ============================
-# Plot Reward Curve
+# Plot Reward Curve (numeric)
 # ============================
 def plot_reward_curve(history, window=1000):
     plt.figure(figsize=(10, 5))
     plt.plot(history, alpha=0.4, label="Raw Rewards")
 
-    # Smoothed line
     if len(history) > window:
-        smoothed = np.convolve(history, np.ones(window)/window, mode="valid")
-        plt.plot(range(window - 1, len(history)), smoothed, label=f"Smoothed (window={window})", color='red')
-    
+        smoothed = np.convolve(history, np.ones(window) / window, mode="valid")
+        plt.plot(range(window - 1, len(history)), smoothed,
+                 label=f"Smoothed (window={window})", color='red')
+
     plt.title("Training Reward per Episode")
     plt.xlabel("Episode")
     plt.ylabel("Total Reward")
@@ -44,17 +49,15 @@ def plot_reward_curve(history, window=1000):
     plt.grid(True)
     plt.show()
 
-
 # ============================
-# Plot Win Rate (if applicable)
+# Plot Win Rate (for 'win/loss/draw')
 # ============================
 def plot_win_rate(history, window=1000):
-    # Convert symbolic results (win/loss/draw) to numeric
     results = {"win": 1, "loss": 0, "draw": 0.5}
     numeric = [results.get(h, None) for h in history if h in results]
 
     if not numeric:
-        print("No win/loss/draw history detected — skipping win rate plot.")
+        print("⚠️ No win/loss/draw results found — skipping win rate plot.")
         return
 
     df = pd.DataFrame(numeric, columns=["result"])
@@ -69,9 +72,8 @@ def plot_win_rate(history, window=1000):
     plt.grid(True)
     plt.show()
 
-
 # ============================
-# Plot Epsilon Decay (optional)
+# Plot Epsilon (if available)
 # ============================
 def plot_epsilon(epsilons):
     plt.figure(figsize=(10, 5))
@@ -83,28 +85,27 @@ def plot_epsilon(epsilons):
     plt.grid(True)
     plt.show()
 
-
 # ============================
-# Main Function
+# Main Entry Point
 # ============================
 if __name__ == "__main__":
-    history = load_history("qtable.pkl")
-    print(f"Loaded {len(history)} entries from training history.")
+    history = load_history("qtable.pkl.gz")
+    print(f"✅ Loaded {len(history)} entries from training history.")
 
     if not history:
         exit()
 
-    # Detect type of history
+    # Detect what kind of data we have
     if isinstance(history[0], (int, float)):
-        print("Detected numeric reward history.")
+        print("📊 Detected numeric reward history.")
         plot_reward_curve(history)
 
     elif isinstance(history[0], str):
-        print("Detected win/loss/draw history.")
-        plot_win_rate(history)
+        print("🏆 Detected win/loss/draw history.")
+        plot_win_rate(history, window=500)
 
     elif isinstance(history[0], dict):
-        print("Detected structured data (dictionary).")
+        print("📁 Detected structured training data.")
         df = pd.DataFrame(history)
         print("Available columns:", list(df.columns))
 
@@ -125,4 +126,4 @@ if __name__ == "__main__":
             plot_epsilon(df["epsilon"])
 
     else:
-        print("Unrecognized data format in qtable.pkl.")
+        print("⚠️ Unrecognized data format in training file.")
