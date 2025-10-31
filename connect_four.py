@@ -323,7 +323,7 @@ if __name__ == "__main__":
         elif choice == "2":
             play_human_vs_ai(agent)
         elif choice == "3":
-            play_ai_vs_ai(agent, episodes=3, delay=300)
+            play_ai_vs_ai(agent, episodes=2, delay=300)
         elif choice == "4":
             print("Goodbye!")
             sys.exit()
